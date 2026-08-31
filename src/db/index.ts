@@ -8,7 +8,7 @@ if (!databaseUrl) {
 }
 
 const globalForDb = globalThis as typeof globalThis & {
-  __arenaNextJsPostgresqlPool?: Pool;
+  __arenaNextJsPostgresqlPool?: InstanceType<typeof Pool>;
 };
 
 export const pool =
