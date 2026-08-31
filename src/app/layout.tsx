@@ -210,7 +210,17 @@ export default function RootLayout({ children }: { children: ReactNode }) {
           type="application/ld+json"
           dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
         />
-      </head>
+      </head><script async src="https://www.googletagmanager.com/gtag/js?id=G-85CQ49KRZ3"></script>
+<script
+  dangerouslySetInnerHTML={{
+    __html: `
+      window.dataLayer = window.dataLayer || [];
+      function gtag(){dataLayer.push(arguments);}
+      gtag('js', new Date());
+      gtag('config', 'G-85CQ49KRZ3');
+    `,
+  }}
+/>
       <body className="min-h-screen bg-[#05070d] text-gray-100 antialiased selection:bg-[#00a3ff] selection:text-black font-['Tajawal','Cairo',sans-serif]">
         {children}
       </body>
