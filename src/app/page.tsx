@@ -42,27 +42,16 @@ function NitroGamesApp() {
     }
   }, []);
 
-  // Load products: localStorage (admin edits) first, then API
+  // جلب المنتجات حصرياً من الـ API (قاعدة بيانات Supabase) لضمان ظهورها على كل الأجهزة
   useEffect(() => {
-    try {
-      const cached = localStorage.getItem("nitro_products_v2");
-      if (cached) {
-        const parsed = JSON.parse(cached);
-        if (Array.isArray(parsed) && parsed.length > 0) {
-          setProducts(parsed);
-          return;
-        }
-      }
-    } catch (e) {
-      console.warn("localStorage parse error:", e);
-    }
-
     async function loadFromApi() {
       try {
         const res = await fetch("/api/products");
         const data = await res.json();
-        if (data.products?.length) {
-          setProducts(data.products);
+        // التحقق مما إذا كانت البيانات مصفوفة مباشرة أو داخل كائن
+        const productList = Array.isArray(data) ? data : data.products;
+        if (productList && productList.length > 0) {
+          setProducts(productList);
         }
       } catch (err) {
         console.warn("Using bundled products:", err);
