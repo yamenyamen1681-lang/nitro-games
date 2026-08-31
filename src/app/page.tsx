@@ -27,40 +27,35 @@ function NitroGamesApp() {
   const [isAdminOpen, setIsAdminOpen] = useState<boolean>(false);
   const [showcase, setShowcase] = useState<ShowcaseConfig>(DEFAULT_SHOWCASE);
 
-  // Load featured-showcase config from localStorage (admin edits)
   useEffect(() => {
     try {
       const raw = localStorage.getItem("nitro_showcase_v2");
       if (raw) {
-        const parsed = JSON.parse(raw) as ShowcaseConfig;
+        const parsed = JSON.parse(raw);
         if (parsed && typeof parsed === "object") {
           setShowcase({ ...DEFAULT_SHOWCASE, ...parsed });
         }
       }
     } catch (e) {
-      console.warn("showcase config parse error:", e);
+      console.warn("showcase error:", e);
     }
   }, []);
 
-  // جلب المنتجات حصرياً من الـ API (قاعدة بيانات Supabase) لضمان ظهورها على كل الأجهزة
   useEffect(() => {
-    async function loadFromApi() {
+    async function loadProducts() {
       try {
         const res = await fetch("/api/products");
         const data = await res.json();
-        // التحقق مما إذا كانت البيانات مصفوفة مباشرة أو داخل كائن
-        const productList = Array.isArray(data) ? data : data.products;
-        if (productList && productList.length > 0) {
-          setProducts(productList);
+        if (Array.isArray(data) && data.length > 0) {
+          setProducts(data);
         }
       } catch (err) {
-        console.warn("Using bundled products:", err);
+        console.warn("API load error:", err);
       }
     }
-    loadFromApi();
+    loadProducts();
   }, []);
 
-  // Secret shortcut: Ctrl + Shift + A
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (e.ctrlKey && e.shiftKey && (e.key === "A" || e.key === "a")) {
@@ -74,7 +69,6 @@ function NitroGamesApp() {
 
   return (
     <div className="min-h-screen bg-[#05070d] text-gray-100 flex flex-col justify-between selection:bg-[#00a3ff] selection:text-black relative overflow-x-hidden">
-      {/* Animated aurora backdrop */}
       <div className="aurora-stage">
         <div className="tech-grid" />
         <div className="aurora-blob" style={{ width: 420, height: 420, top: "-8%", right: "6%", background: "#00a3ff" }} />
@@ -82,7 +76,6 @@ function NitroGamesApp() {
         <div className="aurora-blob" style={{ width: 340, height: 340, bottom: "-6%", right: "28%", background: "#5b8cff", animationDelay: "-12s" }} />
       </div>
 
-      {/* Toast */}
       {toastMessage && (
         <div className="fixed top-24 left-1/2 -translate-x-1/2 z-50">
           <div className="px-5 py-3 rounded-2xl panel border-[#00a3ff]/60 text-white text-xs sm:text-sm font-bold flex items-center gap-2.5 shadow-2xl">
@@ -99,28 +92,16 @@ function NitroGamesApp() {
       />
 
       <main className="flex-1 relative z-10">
-        <HeroSection
-          products={products}
-          showcase={showcase}
-          onCategorySelect={(cat) => setSelectedCategory(cat)}
-        />
+        <HeroSection products={products} showcase={showcase} onCategorySelect={setSelectedCategory} />
         <TrustBadges />
         <DealsSection products={products} />
-        <CategoryGrid
-          selectedCategory={selectedCategory}
-          onSelectCategory={(cat) => setSelectedCategory(cat)}
-        />
-        <ProductSection
-          products={products}
-          selectedCategory={selectedCategory}
-          onSelectCategory={(cat) => setSelectedCategory(cat)}
-          searchQuery={searchQuery}
-        />
+        <CategoryGrid selectedCategory={selectedCategory} onSelectCategory={setSelectedCategory} />
+        <ProductSection products={products} selectedCategory={selectedCategory} onSelectCategory={setSelectedCategory} searchQuery={searchQuery} />
         <CustomerReviews />
         <NewsletterSection />
       </main>
 
-      <Footer onOpenAdmin={() => setIsAdminOpen(true)} onSelectCategory={(cat) => setSelectedCategory(cat)} />
+      <Footer onOpenAdmin={() => setIsAdminOpen(true)} onSelectCategory={setSelectedCategory} />
 
       <CartDrawer />
       <CheckoutModal />
