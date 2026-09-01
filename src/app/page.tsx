@@ -1,131 +1,160 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
-import { CartProvider, useCart } from "@/context/CartContext";
-import { Header } from "@/components/Header";
-import { HeroSection } from "@/components/HeroSection";
-import { TrustBadges } from "@/components/TrustBadges";
-import { DealsSection } from "@/components/DealsSection";
-import { CategoryGrid } from "@/components/CategoryGrid";
-import { ProductSection } from "@/components/ProductSection";
-import { CustomerReviews } from "@/components/CustomerReviews";
-import { NewsletterSection } from "@/components/NewsletterSection";
-import { Footer } from "@/components/Footer";
-import { CartDrawer } from "@/components/CartDrawer";
-import { CheckoutModal } from "@/components/CheckoutModal";
-import { QuickViewModal } from "@/components/QuickViewModal";
-import { LiveSalesToast } from "@/components/LiveSalesToast";
-import { FloatingActions } from "@/components/FloatingActions";
-import { AdminDashboardModal } from "@/components/AdminDashboardModal";
-import { Product, INITIAL_PRODUCTS, ShowcaseConfig, DEFAULT_SHOWCASE } from "@/lib/data";
+import { useState, useEffect } from "react";
 
-function NitroGamesApp() {
-  const { toastMessage, showToast } = useCart();
-  const [products, setProducts] = useState<Product[]>(INITIAL_PRODUCTS);
-  const [selectedCategory, setSelectedCategory] = useState<string>("all");
-  const [searchQuery, setSearchQuery] = useState<string>("");
-  const [isAdminOpen, setIsAdminOpen] = useState<boolean>(false);
-  const [showcase, setShowcase] = useState<ShowcaseConfig>(DEFAULT_SHOWCASE);
-
-  useEffect(() => {
-    try {
-      const raw = localStorage.getItem("nitro_showcase_v2");
-      if (raw) {
-        const parsed = JSON.parse(raw);
-        if (parsed && typeof parsed === "object") {
-          setShowcase({ ...DEFAULT_SHOWCASE, ...parsed });
-        }
-      }
-    } catch (e) {
-      console.warn("showcase error:", e);
-    }
-  }, []);
-
-  useEffect(() => {
-    async function loadProducts() {
-      try {
-        const res = await fetch("/api/products");
-        const data = await res.json();
-        if (Array.isArray(data) && data.length > 0) {
-          setProducts(data);
-        }
-      } catch (err) {
-        console.warn("API load error:", err);
-      }
-    }
-    loadProducts();
-  }, []);
-
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => {
-      if (e.ctrlKey && e.shiftKey && (e.key === "A" || e.key === "a")) {
-        e.preventDefault();
-        setIsAdminOpen(true);
-      }
-    };
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, []);
-
-  return (
-    <div className="min-h-screen bg-[#05070d] text-gray-100 flex flex-col justify-between selection:bg-[#00a3ff] selection:text-black relative overflow-x-hidden">
-      <div className="aurora-stage">
-        <div className="tech-grid" />
-        <div className="aurora-blob" style={{ width: 420, height: 420, top: "-8%", right: "6%", background: "#00a3ff" }} />
-        <div className="aurora-blob" style={{ width: 380, height: 380, top: "35%", left: "4%", background: "#00e5ff", animationDelay: "-6s" }} />
-        <div className="aurora-blob" style={{ width: 340, height: 340, bottom: "-6%", right: "28%", background: "#5b8cff", animationDelay: "-12s" }} />
-      </div>
-
-      {toastMessage && (
-        <div className="fixed top-24 left-1/2 -translate-x-1/2 z-50">
-          <div className="px-5 py-3 rounded-2xl panel border-[#00a3ff]/60 text-white text-xs sm:text-sm font-bold flex items-center gap-2.5 shadow-2xl">
-            <span className="w-2 h-2 rounded-full bg-[#00a3ff] animate-ping" />
-            <span>{toastMessage}</span>
-          </div>
-        </div>
-      )}
-
-      <Header
-        onSearchChange={(q) => setSearchQuery(q)}
-        onCategorySelect={(cat) => setSelectedCategory(cat)}
-        onOpenAdmin={() => setIsAdminOpen(true)}
-      />
-
-      <main className="flex-1 relative z-10">
-        <HeroSection products={products} showcase={showcase} onCategorySelect={setSelectedCategory} />
-        <TrustBadges />
-        <DealsSection products={products} />
-        <CategoryGrid selectedCategory={selectedCategory} onSelectCategory={setSelectedCategory} />
-        <ProductSection products={products} selectedCategory={selectedCategory} onSelectCategory={setSelectedCategory} searchQuery={searchQuery} />
-        <CustomerReviews />
-        <NewsletterSection />
-      </main>
-
-      <Footer onOpenAdmin={() => setIsAdminOpen(true)} onSelectCategory={setSelectedCategory} />
-
-      <CartDrawer />
-      <CheckoutModal />
-      <QuickViewModal />
-      <LiveSalesToast />
-      <FloatingActions />
-
-      <AdminDashboardModal
-        isOpen={isAdminOpen}
-        onClose={() => setIsAdminOpen(false)}
-        products={products}
-        onProductsUpdate={setProducts}
-        showToast={showToast}
-        showcase={showcase}
-        onShowcaseUpdate={setShowcase}
-      />
-    </div>
-  );
+interface Product {
+  id: number;
+  name: string;
+  price: number;
+  description: string;
+  image: string;
 }
 
-export default function Home() {
+export default function AdminPage() {
+  const [products, setProducts] = useState<Product[]>([]);
+  const [name, setName] = useState("");
+  const [price, setPrice] = useState("");
+  const [description, setDescription] = useState("");
+  const [image, setImage] = useState("");
+  const [editingId, setEditingId] = useState<number | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [message, setMessage] = useState("");
+
+  // جلب المنتجات لعرضها وإدارتها
+  const fetchProducts = async () => {
+    try {
+      const res = await fetch("/api/products");
+      const data = await res.json();
+      if (Array.isArray(data)) {
+        setProducts(data);
+      }
+    } catch (err) {
+      console.error("فشل في جلب المنتجات");
+    }
+  };
+
+  useEffect(() => {
+    fetchProducts();
+  }, []);
+
+  // إضافة أو تعديل منتج
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setLoading(true);
+    setMessage("");
+
+    const method = editingId ? "PUT" : "POST";
+    const bodyData = editingId
+      ? { id: editingId, name, price: parseFloat(price), description, image }
+      : { name, price: parseFloat(price), description, image };
+
+    try {
+      const res = await fetch("/api/products", {
+        method,
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(bodyData),
+      });
+
+      if (res.ok) {
+        setMessage(editingId ? "تم تعديل المنتج بنجاح! ✏️" : "تم إضافة المنتج بنجاح! 🎉");
+        setName("");
+        setPrice("");
+        setDescription("");
+        setImage("");
+        setEditingId(null);
+        fetchProducts();
+      } else {
+        setMessage("حدث خطأ، يرجى المحاولة مرة أخرى.");
+      }
+    } catch (error) {
+      setMessage("فشل الاتصال بالخادم.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // تعبئة البيانات للتعديل
+  const handleEdit = (product: Product) => {
+    setEditingId(product.id);
+    setName(product.name);
+    setPrice(product.price.toString());
+    setDescription(product.description || "");
+    setImage(product.image || "");
+  };
+
+  // حذف منتج
+  const handleDelete = async (id: number) => {
+    if (!confirm("هل أنت متأكد من حذف هذا المنتج؟")) return;
+
+    try {
+      const res = await fetch(`/api/products?id=${id}`, {
+        method: "DELETE",
+      });
+
+      if (res.ok) {
+        setMessage("تم حذف المنتج بنجاح 🗑️");
+        fetchProducts();
+      } else {
+        setMessage("فشل في حذف المنتج.");
+      }
+    } catch (err) {
+      setMessage("حدث خطأ أثناء الحذف.");
+    }
+  };
+
   return (
-    <CartProvider>
-      <NitroGamesApp />
-    </CartProvider>
+    <div style={{ maxWidth: "700px", margin: "40px auto", padding: "20px", fontFamily: "sans-serif" }} dir="rtl">
+      <h1 style={{ textAlign: "center", marginBottom: "20px" }}>لوحة تحكم Nitro Games</h1>
+      
+      {/* نموذج الإضافة أو التعديل */}
+      <form onSubmit={handleSubmit} style={{ background: "#f9f9f9", padding: "20px", borderRadius: "8px", boxShadow: "0 2px 5px rgba(0,0,0,0.1)", display: "flex", flexDirection: "column", gap: "12px", marginBottom: "30px" }}>
+        <h2>{editingId ? "تعديل منتج" : "إضافة منتج جديد"}</h2>
+        <div>
+          <label>اسم المنتج:</label>
+          <input type="text" value={name} onChange={(e) => setName(e.target.value)} required style={{ width: "100%", padding: "8px", marginTop: "4px" }} />
+        </div>
+        <div>
+          <label>السعر:</label>
+          <input type="number" value={price} onChange={(e) => setPrice(e.target.value)} required style={{ width: "100%", padding: "8px", marginTop: "4px" }} />
+        </div>
+        <div>
+          <label>الوصف:</label>
+          <textarea value={description} onChange={(e) => setDescription(e.target.value)} style={{ width: "100%", padding: "8px", marginTop: "4px" }} />
+        </div>
+        <div>
+          <label>رابط الصورة (Image URL):</label>
+          <input type="text" value={image} onChange={(e) => setImage(e.target.value)} style={{ width: "100%", padding: "8px", marginTop: "4px" }} />
+        </div>
+        <div style={{ display: "flex", gap: "10px" }}>
+          <button type="submit" disabled={loading} style={{ padding: "10px 20px", background: editingId ? "#f59e0b" : "#0070f3", color: "#fff", border: "none", cursor: "pointer", borderRadius: "4px" }}>
+            {loading ? "جاري الحفظ..." : editingId ? "تحديث المنتج" : "إضافة المنتج"}
+          </button>
+          {editingId && (
+            <button type="button" onClick={() => { setEditingId(null); setName(""); setPrice(""); setDescription(""); setImage(""); }} style={{ padding: "10px 20px", background: "#6b7280", color: "#fff", border: "none", cursor: "pointer", borderRadius: "4px" }}>
+              إلغاء التعديل
+            </button>
+          )}
+        </div>
+      </form>
+
+      {message && <p style={{ fontWeight: "bold", textAlign: "center", color: "#10b981" }}>{message}</p>}
+
+      {/* قائمة المنتجات الحالية */}
+      <h2>قائمة المنتجات الحالية</h2>
+      <div style={{ display: "flex", flexDirection: "column", gap: "10px", marginTop: "10px" }}>
+        {products.map((p) => (
+          <div key={p.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "12px", border: "1px solid #ddd", borderRadius: "6px", background: "#fff" }}>
+            <div>
+              <strong style={{ fontSize: "16px" }}>{p.name}</strong> - <span style={{ color: "#059669" }}>{p.price} $</span>
+            </div>
+            <div style={{ display: "flex", gap: "8px" }}>
+              <button onClick={() => handleEdit(p)} style={{ padding: "6px 12px", background: "#3b82f6", color: "#fff", border: "none", cursor: "pointer", borderRadius: "4px" }}>تعديل</button>
+              <button onClick={() => handleDelete(p.id)} style={{ padding: "6px 12px", background: "#ef4444", color: "#fff", border: "none", cursor: "pointer", borderRadius: "4px" }}>حذف</button>
+            </div>
+          </div>
+        ))}
+        {products.length === 0 && <p style={{ color: "#6b7280" }}>لا توجد منتجات مضافة حتى الآن.</p>}
+      </div>
+    </div>
   );
 }
